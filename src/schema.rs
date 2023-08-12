@@ -1,6 +1,13 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize, Debug, Default)]
+
+pub struct NearBySearchOptions {
+    pub location: Option<String>,
+    pub keyword: Option<String>,
+    pub radius: Option<usize>,
+    pub r#type: Option<String>,
+}
 pub struct FilterOptions {
     pub page: Option<usize>,
     pub limit: Option<usize>,
