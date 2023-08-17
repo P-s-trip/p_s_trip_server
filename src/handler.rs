@@ -1,3 +1,5 @@
+use reqwest::Error;
+
 use std::sync::Arc;
 
 use axum::{
@@ -9,6 +11,83 @@ use axum::{
 use serde_json::json;
 
 use crate::{schema::NearBySearchOptions, AppState};
+
+pub async fn place_near_by_search_handler(
+    opts: Option<Query<NearBySearchOptions>>,
+    State(data): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+    let Query(opts) = opts.unwrap_or_default();
+
+    const GOOGLE_PLACE_NEAR_BY_SEARCH_URL: &str =
+        "https://maps.googleapis.com/maps/api/place/nearbysearch/json";
+
+    let mut queries = vec![];
+
+    match opts.location {
+        Some(value) => {
+            queries.push(("location", value));
+        }
+        None => {
+            return send_400_error("location is required");
+        }
+    }
+
+    match opts.radius {
+        Some(value) => {
+            queries.push(("radius", value.to_string()));
+        }
+        None => {
+            return send_400_error("radius is required");
+        }
+    }
+
+    match opts.keyword {
+        Some(value) => {
+            queries.push(("keyword", value));
+        }
+        None => {
+            return send_400_error("keyword is required");
+        }
+    }
+
+    match opts.r#type {
+        Some(value) => {
+            queries.push(("type", value));
+        }
+        None => {
+            return send_400_error("type is required");
+        }
+    }
+
+    queries.push(("key",std::env::var("GOOGLE_MAPS_API_KEY").expect("GOOGLE_MAPS_API_KEY must be set")))
+
+    let response = reqwest::get(GOOGLE_PLACE_NEAR_BY_SEARCH_URL).await?;
+
+
+        match response.status().as_u16() {
+        200..=299 => {
+        let body = response.text().await?;
+        println!("Success! Body:\n{}", body);
+        }
+        ..=599 => {
+         status = response.status();
+         error_message = response.text().await?;
+        !("Error {}: {}", status, error_message);
+        }
+         => {
+        !("Unexpected status code: {}", response.status());
+        }
+        }
+
+    println!("Status: {}", response.status());
+
+    return Ok(());
+
+    // let offset = (opts.page.unwrap_or(1) - 1) * limit;
+    // if opts.location == 0 {
+
+    // }
+}
 
 // pub async fn health_checker_handler() -> impl IntoResponse {
 //     const MESSAGE: &str = "Simple CRUD API with Rust, SQLX, Postgres,and Axum";
@@ -194,60 +273,6 @@ use crate::{schema::NearBySearchOptions, AppState};
 
 //     Ok(StatusCode::NO_CONTENT)
 // }
-
-pub async fn place_near_by_search_handler(
-    opts: Option<Query<NearBySearchOptions>>,
-    State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let Query(opts) = opts.unwrap_or_default();
-
-    const GOOGLE_PLACE_NEAR_BY_SEARCH_URL: &str =
-        "https://maps.googleapis.com/maps/api/place/nearbysearch/json";
-
-    let mut queries = vec![];
-
-    match opts.location {
-        Some(value) => {
-            queries.push(("location", value));
-        }
-        None => {
-            return send_400_error("location is required");
-        }
-    }
-
-    match opts.radius {
-        Some(value) => {
-            queries.push(("radius", value.to_string()));
-        }
-        None => {
-            return send_400_error("radius is required");
-        }
-    }
-
-    match opts.keyword {
-        Some(value) => {
-            queries.push(("keyword", value));
-        }
-        None => {
-            return send_400_error("keyword is required");
-        }
-    }
-
-    match opts.r#type {
-        Some(value) => {
-            queries.push(("type", value));
-        }
-        None => {
-            return send_400_error("type is required");
-        }
-    }
-    return Ok(());
-
-    // let offset = (opts.page.unwrap_or(1) - 1) * limit;
-    // if opts.location == 0 {
-
-    // }
-}
 
 fn send_400_error(message: &str) -> Result<(), (StatusCode, Json<serde_json::Value>)> {
     let error_response = json!({
