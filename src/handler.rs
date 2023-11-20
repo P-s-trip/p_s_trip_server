@@ -1,93 +1,138 @@
-use reqwest::Error;
-
+use serde::{Serialize, Deserialize};
 use std::sync::Arc;
 
 use axum::{
     extract::{Query, State},
     http::StatusCode,
     response::IntoResponse,
+    http::Response, 
     Json,
 };
 use serde_json::json;
 
 use crate::{schema::NearBySearchOptions, AppState};
 
-pub async fn place_near_by_search_handler(
-    opts: Option<Query<NearBySearchOptions>>,
-    State(data): State<Arc<AppState>>,
-) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let Query(opts) = opts.unwrap_or_default();
 
-    const GOOGLE_PLACE_NEAR_BY_SEARCH_URL: &str =
-        "https://maps.googleapis.com/maps/api/place/nearbysearch/json";
+enum PlaceType {
+    Cafe,
+    Restaurant
+  }
+  
 
-    let mut queries = vec![];
+  #[derive(Default)]
+  struct GetPlacesSearchNearByOptions{
+    latitude: f64,
+    longitude:f64,
+    radius:u16,
+    r#type:String,
 
-    match opts.location {
-        Some(value) => {
-            queries.push(("location", value));
-        }
-        None => {
-            return send_400_error("location is required");
-        }
-    }
-
-    match opts.radius {
-        Some(value) => {
-            queries.push(("radius", value.to_string()));
-        }
-        None => {
-            return send_400_error("radius is required");
-        }
-    }
-
-    match opts.keyword {
-        Some(value) => {
-            queries.push(("keyword", value));
-        }
-        None => {
-            return send_400_error("keyword is required");
-        }
-    }
-
-    match opts.r#type {
-        Some(value) => {
-            queries.push(("type", value));
-        }
-        None => {
-            return send_400_error("type is required");
-        }
-    }
-
-    queries.push(("key",std::env::var("GOOGLE_MAPS_API_KEY").expect("GOOGLE_MAPS_API_KEY must be set")))
-
-    let response = reqwest::get(GOOGLE_PLACE_NEAR_BY_SEARCH_URL).await?;
-
-
-        match response.status().as_u16() {
-        200..=299 => {
-        let body = response.text().await?;
-        println!("Success! Body:\n{}", body);
-        }
-        ..=599 => {
-         status = response.status();
-         error_message = response.text().await?;
-        !("Error {}: {}", status, error_message);
-        }
-         => {
-        !("Unexpected status code: {}", response.status());
-        }
-        }
-
-    println!("Status: {}", response.status());
-
-    return Ok(());
-
-    // let offset = (opts.page.unwrap_or(1) - 1) * limit;
-    // if opts.location == 0 {
-
-    // }
 }
+
+
+const GOOGLE_PLACE_NEAR_BY_SEARCH_URL: &str =
+    "https://places.googleapis.com/v1/places:searchNearby";
+
+    pub async fn get_places_search_near_by(
+            State(data): State<Arc<AppState>>,
+        ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+
+    enum PlaceType {
+        CAFE,
+        RESTAURANT
+    }
+    #[derive(Serialize)]
+    struct LocationRestriction {
+        circle: Circle
+      }
+      
+      #[derive(Serialize)]
+      struct Circle {
+        center: Center,
+        radius: f64
+      } 
+      #[derive(Serialize)]
+      struct Center {
+        latitude: f64,
+        longitude: f64
+      }
+      
+    
+      
+      struct RequestBody  {
+        included_types: Vec<PlaceType>,
+        maxResultCount: u8,
+        locationRestriction:  Vec<String>,
+      }
+
+      let body = LocationRestriction {
+        circle: Circle {
+          center: Center {
+            latitude: 37.5,
+            longitude: 127.0  
+          },
+          radius: 500.0
+        }
+      };
+
+    let request_body = serde_json::to_string(&body).unwrap();
+
+    let resp = data.client.post("https://places.googleapis.com/v1/places:searchNearby")
+    .json(&request_body)
+    .send()
+    .await
+    .unwrap();
+  
+    #[derive(Serialize)]
+    #[derive(Deserialize)] 
+    struct PlacesResponse{
+
+  }
+  // 응답 본문 역직렬화
+//   let places: PlacesResponse = resp.json().await.unwrap();
+//   let places_value: serde_json::Value = serde_json::to_value(places).unwrap();
+//   let axum_response = Response::new(Json(places_value));
+//   Ok(axum_response)
+
+    const MESSAGE: &str = "Simple CRUD API with Rust, SQLX, Postgres,and Axum";
+
+    let json_response = serde_json::json!({
+        "status": "success",
+        "message": MESSAGE
+    });
+
+    Ok(Json(json_response))
+  // Axum 응답으로 반환
+
+
+}
+
+
+
+// pub async fn place_near_by_search_handler(
+//     opts: Option<Query<NearBySearchOptions>>,
+//     State(data): State<Arc<AppState>>,
+// ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
+//     let Query(opts) = opts.unwrap_or_default();
+
+//     const GOOGLE_PLACE_NEAR_BY_SEARCH_URL: &str =
+//         "https://places.googleapis.com/v1/places:searchNearby";
+
+//         let client = reqwest::Client::new();
+//         let request_body = {};
+
+      
+//         let resp = client.post("https://places.googleapis.com/v1/places:searchNearby")
+//             .json(&request_body)
+//             .send()
+//             .await;
+    
+//     let json_response = serde_json::json!({
+//         "status": "success",
+//         "message": MESSAGE
+//     });
+
+//     return Json({})
+// }
 
 // pub async fn health_checker_handler() -> impl IntoResponse {
 //     const MESSAGE: &str = "Simple CRUD API with Rust, SQLX, Postgres,and Axum";

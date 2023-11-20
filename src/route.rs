@@ -1,23 +1,14 @@
 use std::sync::Arc;
 
 use axum::{
-    routing::{get, post},
+    routing::get,
     Router,
 };
 
-use crate::{handler::place_near_by_search_handler, AppState};
+use crate::{handler::get_places_search_near_by, AppState};
 
 pub fn create_router(app_state: Arc<AppState>) -> Router {
     Router::new()
-        // .route("/api/healthchecker", get(health_checker_handler))
-        // .route("/api/notes/", post(create_note_handler))
-        // .route("/api/notes", get(note_list_handler))
-        // .route(
-        //     "/api/notes/:id",
-        //     get(get_note_handler)
-        //         .patch(edit_note_handler)
-        //         .delete(delete_note_handler),
-        // )
-        .route("/place/nearbysearch", get(place_near_by_search_handler))
+        .route("/place/nearbysearch", get(get_places_search_near_by))
         .with_state(app_state)
 }
